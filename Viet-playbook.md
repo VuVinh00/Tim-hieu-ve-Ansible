@@ -235,4 +235,55 @@ Cuối cùng là cài đặt Laravel Installer sử dụng Composer. Ở đây c
  
  #### Configure Nginx 
  
- Trong bước này chúng ta sẽ cấu hình nginx web server cho laravel application
+ Trong bước này chúng ta sẽ cấu hình nginx web server cho laravel application ta vừa cài đặt ở trên : 
+ 
+ - Tạo symbolic link cho thư mục Laravel application chúng ta vừa tạo ở trên
+ - Xóa bỏ file cấu hình mặc định của nginx tại ``/etc/nginx/sites-enabled/default``
+ - Di chuyển file cấu hình vào thư mục ``/etc/nginx/sites-available``
+ - Tạo symbolic link cho file cấu hình trên trong thư mục ``/etc/nginx/sites-enabled``
+ 
+Tạo symbolic link cho thư mục của Laravel application sử dụng ``file`` module : 
+
+```
+- name: Create symlink for laravel application.
+  file:
+    src: "{{ laravel_project_root }}"
+    dest: "{{ laravel_project_symlink }}"
+    state: link
+```
+
+Xóa bỏ file cấu hình mặc định của nginx : 
+
+```
+- name: Remove default configuration file in sites-enabled directory.
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: reload Nginx
+```
+
+Di chuyển file cấu hình vào thư mục ``/etc/nginx/sites-available``. Chúng ta sẽ làm quen với một module mới trong Ansible đó là ``template``. Ở đây chúng ta đã có sẵn một file template cho nginx được lưu tại templates/nginx/ansible-laravel.conf.j2 . Ansible sử dụng jinja2 template để định nghĩa nội dung cho các template : 
+
+```
+- name: Add NGINX configuration file for Laravel application.
+  template:
+    src: templates/nginx/ansible-laravel.conf.j2
+    dest: "/etc/nginx/sites-available/{{ domain }}.conf"
+    owner: root
+    group: root
+    mode: 0644
+  notify: reload Nginx
+```
+
+Tạo symbolic link cho file cấu hình trong thư mục ``/etc/nginx/sites-enabled`` : 
+
+```
+- name: Create new symbolic link for the configuration file.
+  file:
+    src: "/etc/nginx/sites-available/{{ domain }}.conf"
+    dest: /etc/nginx/sites-enabled/default.conf
+    state: link
+  notify: reload Nginx
+```
+
+Truy cập 10.0.10.138 trên trình duyệt sẽ thấy trang welcom mặc định của Laravel
