@@ -287,3 +287,7 @@ Tạo symbolic link cho file cấu hình trong thư mục ``/etc/nginx/sites-ena
 ```
 
 Truy cập 10.0.10.138 trên trình duyệt sẽ thấy trang welcom mặc định của Laravel
+
+### Nguồn tham khảo : 
+
+https://viblo.asia/p/ansible-fundamentals-playbooks-101-E375zeXjlGW
