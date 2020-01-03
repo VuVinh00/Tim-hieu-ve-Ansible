@@ -143,4 +143,96 @@ Cấu hình cho MySQL bao gồm các bước sau :
     state: absent
 ```
 
+Chúng ta sẽ tạo một database có tên trùng với biến ``domain`` mà chúng ta định nghĩa trong file ``vars.yml``
 
+```
+- name: Create new database for the application.
+  mysql_db:
+    db: "{{ domain }}"
+    state: present
+```
+
+Tạo một user mới : 
+
+```
+- name: Create new MySQL user for the application.
+  mysql_user:
+    name: "{{ domain }}"
+    password: "12345678"
+    priv: "{{ domain }}.*:ALL"
+    host: localhost
+    state: present
+```
+
+#### Install Composer và Laravel installer
+
+Có 2 việc chính đó là cài đặt **Composer** và **Laravel Installer**
+
+Để cài đặt **Composer** chúng ta cần làm 3 việc, tương ứng với ba tasks trong playbook :
+- Donwload Composer installer
+- Chạy installer trên
+- Di chuyển composer binary vào thư mục bin
+
+Để download Composer installer chúng ta sử dụng module ``get_url`` module.
+
+```
+- name: Download Composer installer.
+  get_url:
+    url: https://getcomposer.org/installer
+    dest: /tmp/composer-installer.php
+    mode: 0755
+```
+
+Trong đó : 
+
+- ``url`` : URL đến file cần tải
+- ``dest`` : nơi lưu file đã tải xuống
+- ``mode`` : ở đây sẽ là ``0755`` do chúng ta cần file này ở dạng executable
+
+Tiếp đến chúng ta cần chạy PHP script trên để lấy về file ``composer.phar``. Một lần nữa chúng ta sẽ lại sử dụng ``command`` module.
+
+```
+- name: Run Composer installer.
+  command: php composer-installer.php
+  args:
+    chdir: /tmp
+    creates: /usr/local/bin/composer
+```
+
+Trong đó :
+
+- ``chdir`` : thay đổi vào thư mục chỉ định trước khi chạy command
+- ``creates`` : Tên của file - nếu file này đã tồn tại thì command sẽ không được thực thi
+
+Bước tiếp theo là chuyển file ``composer.phar`` vào thư mục bin. Ở đây chúng ta sẽ sử dụng ``shell`` module với options ``creates`` : 
+
+```
+- name: Move Composer into globally-accessible location.
+  shell: mv /tmp/composer.phar /usr/local/bin/composer
+  args:
+    creates: /usr/local/bin/composer
+```
+
+Cuối cùng là cài đặt Laravel Installer sử dụng Composer. Ở đây chúng ta không cần quyền sudo để chạy command do đó ``become`` sẽ có giá trị là ``false`` : 
+
+```
+- name: Install Laravel Installer via Composer.
+  shell: /usr/local/bin/composer global require "laravel/installer"
+  args:
+    creates: "{{ home_directory }}/.config/composer/vendor/bin/laravel"
+  become: false
+  
+- name: Create symlink for laravel installer.
+  file:
+    src: "{{ home_directory }}/.config/composer/vendor/bin/laravel"
+    dest: /usr/local/bin/laravel
+    state: link
+ ```
+ 
+ Chúng ta có thể sử dụng ad-hoc command để kiểm tra Laravel Installer : 
+ 
+ ``ansible -i inventory.ini app -m command -a "laravel -V"``
+ 
+ #### Configure Nginx 
+ 
+ Trong bước này chúng ta sẽ cấu hình nginx web server cho laravel application
